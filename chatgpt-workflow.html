@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎨 HSK1 × ChatGPT Image Workflow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0f;
+    color: #e8e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #7ee8a2, #4fc3f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .instructions {
+    background: #13131a;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #aaa;
+  }
+  .instructions ol { padding-left: 18px; }
+  .instructions li { margin-bottom: 4px; }
+  .instructions a { color: #4fc3f7; }
+  .stats {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 14px;
+  }
+  .stats strong { color: #7ee8a2; font-size: 1rem; }
+  .card-info {
+    background: #13131a;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .char-badge { font-size: 2.2rem; line-height: 1; min-width: 48px; text-align: center; }
+  .card-meta { flex: 1; }
+  .card-pinyin { font-size: 0.9rem; color: #4fc3f7; font-weight: 600; }
+  .card-meaning { font-size: 0.8rem; color: #888; margin-top: 2px; }
+  .card-index { font-size: 0.72rem; color: #555; margin-top: 2px; }
+  .prompt-box {
+    background: #13131a;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 0.75rem;
+    color: #777;
+    line-height: 1.5;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .btn {
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.97); opacity: 0.85; }
+  .btn-copy {
+    background: linear-gradient(135deg, #7ee8a2, #4caf82);
+    color: #0a2018;
+    grid-column: 1 / -1;
+  }
+  .btn-copy.copied {
+    background: linear-gradient(135deg, #4fc3f7, #2196c4);
+    color: #001824;
+  }
+  .btn-keep {
+    background: linear-gradient(135deg, #7ee8a2, #4caf82);
+    color: #0a2018;
+  }
+  .btn-keep:disabled {
+    background: #2a2a3a;
+    color: #555;
+    cursor: not-allowed;
+  }
+  .btn-redo {
+    background: #1e1e2e;
+    color: #aaa;
+    border: 1px solid #3a3a4a;
+  }
+  .btn-redo:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-skip {
+    background: #1e1e2e;
+    color: #aaa;
+    border: 1px solid #3a3a4a;
+    grid-column: 1 / -1;
+  }
+  .upload-zone {
+    border: 2px dashed #3a3a4a;
+    border-radius: 14px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 14px;
+    transition: border-color 0.2s, background 0.2s;
+    background: #0e0e18;
+    position: relative;
+  }
+  .upload-zone.has-image {
+    border-color: #7ee8a2;
+    background: #0a1a10;
+    padding: 0;
+    overflow: hidden;
+  }
+  .upload-zone.dragover {
+    border-color: #4fc3f7;
+    background: #0a1420;
+  }
+  .upload-zone img { width: 100%; border-radius: 12px; display: block; }
+  .upload-hint { font-size: 0.82rem; color: #555; margin-top: 8px; }
+  .upload-icon { font-size: 2rem; margin-bottom: 6px; }
+  #file-input { display: none; }
+  .progress-bar-wrap {
+    background: #1a1a28;
+    border-radius: 99px;
+    height: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7ee8a2, #4fc3f7);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .strip-label {
+    font-size: 0.72rem;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .thumb-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  .thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    background: #1a1a28;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid #2a2a3a;
+    position: relative;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .thumb-char {
+    position: absolute;
+    bottom: 2px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 0.65rem;
+    color: #fff;
+    text-shadow: 0 1px 3px #000;
+  }
+  .done-panel {
+    display: none;
+    background: #0d1f12;
+    border: 1px solid #2a5a38;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .done-panel.visible { display: block; }
+  .done-panel h2 { color: #7ee8a2; margin-bottom: 10px; }
+  .done-panel p { font-size: 0.82rem; color: #888; line-height: 1.6; margin-bottom: 14px; }
+  .btn-download {
+    background: linear-gradient(135deg, #7ee8a2, #4caf82);
+    color: #0a2018;
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎨 HSK1 × ChatGPT Image Workflow</h1>
+<p class="subtitle">One tap copies the prompt · Switch to ChatGPT · Generate · Come back · Upload · Next</p>
+
+<div class="instructions">
+  <ol>
+    <li>Open <a href="https://chat.openai.com" target="_blank">chat.openai.com</a> in another tab</li>
+    <li>Tap <strong>Copy Prompt</strong> below — paste into ChatGPT — wait for image</li>
+    <li>Come back here — tap the <strong>upload area</strong> — select the image</li>
+    <li>Preview appears — tap <strong>✓ Keep</strong> or <strong>↺ Redo</strong></li>
+    <li>When done tap <strong>Download JSON</strong> — import into HSK1 app via 🎨 Cards</li>
+  </ol>
+</div>
+
+<div class="stats">
+  <strong id="done-count">0</strong> / <strong id="total-count">485</strong> done &nbsp;·&nbsp;
+  <span id="skip-count">0</span> skipped &nbsp;·&nbsp;
+  ~<span id="eta">0h</span> remaining
+</div>
+
+<div class="progress-bar-wrap">
+  <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+</div>
+
+<div class="card-info" id="card-info">
+  <div class="char-badge" id="cur-char">一</div>
+  <div class="card-meta">
+    <div class="card-pinyin" id="cur-pinyin"></div>
+    <div class="card-meaning" id="cur-meaning"></div>
+    <div class="card-index" id="cur-index"></div>
+  </div>
+</div>
+
+<div class="prompt-box" id="prompt-box"></div>
+
+<div class="btn-row">
+  <button class="btn btn-copy" id="btn-copy" onclick="copyPrompt()">📋 Copy Prompt</button>
+  <button class="btn btn-skip" onclick="skipCard()">Skip →</button>
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="handleFile(this.files[0])">
+<div class="upload-zone" id="upload-zone"
+     onclick="document.getElementById('file-input').click()"
+     ondragover="event.preventDefault();this.classList.add('dragover')"
+     ondragleave="this.classList.remove('dragover')"
+     ondrop="event.preventDefault();this.classList.remove('dragover');handleFile(event.dataTransfer.files[0])">
+  <div id="upload-placeholder">
+    <div class="upload-icon">⬆️</div>
+    <div>Tap to upload the image from ChatGPT</div>
+    <div class="upload-hint">or drag and drop it here</div>
+  </div>
+  <img id="preview-img" src="" alt="" style="display:none">
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-keep" id="btn-keep" onclick="keepImage()" disabled>✓ Keep</button>
+  <button class="btn btn-redo" id="btn-redo" onclick="redoImage()" disabled>↺ Redo</button>
+</div>
+
+<div class="strip-label">Cards · <span id="strip-count">0</span> done · tap to preview</div>
+<div class="thumb-strip" id="thumb-strip"></div>
+
+<div class="done-panel" id="done-panel">
+  <h2>✅ All done! Ready to install.</h2>
+  <p>
+    1. Tap <strong>Download hsk1_images.json</strong><br>
+    2. Transfer to iPhone (AirDrop, iCloud, email)<br>
+    3. Open HSK1 app → tap <strong>🎨 Cards</strong> → select file<br>
+    4. All cards load with cinematic images instantly!
+  </p>
+  <button class="btn-download" onclick="downloadJSON()">⬇ Download hsk1_images.json</button>
+</div>
+
+<script>
+// ── HSK1 word list (485 entries) ──────────────────────────────────────────
+// [hanzi, pinyin, english, prompt]
+const HSK1 = [
+["一","yī","one","A single glowing horizontal line carved into ancient stone by a lone monk at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["二","èr","two","Two parallel glowing embers floating in darkness, perfectly mirrored. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["三","sān","three","Three horizontal layers of luminous mist over a mountain lake at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["四","sì","four","Four massive stone pillars forming a square chamber, torchlight flickering inside. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["五","wǔ","five","Five koi fish swimming in perfect formation through crystal water, sunlight refracting. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["六","liù","six","Six lanterns floating upward into a dark festival sky over a still river. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["七","qī","seven","Seven fireflies tracing paths through a bamboo forest at twilight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["八","bā","eight","Two arms spread wide catching golden light, casting symmetrical shadows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["九","jiǔ","nine","A single arm reaching upward almost touching nine stars clustered in the night sky. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["十","shí","ten","A perfect crossroads at dusk, two roads meeting at dead center in golden light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["百","bǎi","hundred","A vast library hall, books stretching to infinity in warm amber light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["千","qiān","thousand","A towering figure standing on a mountain summit surveying a thousand valleys. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["万","wàn","ten thousand","A desert of golden sand dunes stretching to every horizon under a blazing sun. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["零","líng","zero","An empty stone bowl in a silent courtyard after rain, a single drop falling. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["两","liǎng","two of","A perfectly balanced scale in a dim antique shop, both sides equal. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["半","bàn","half","A moon exactly half full reflected in a still pond at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["年","nián","year","A farmer watching the last wheat of harvest fall under a full autumn moon. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["月","yuè","month/moon","A crescent moon framed in an arched stone window over a dark sea. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["日","rì","day/sun","A blazing sun rising directly through a stone arch casting a perfect beam. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["今","jīn","today","A newspaper press printing under urgent fluorescent light, fresh ink smell. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["明","míng","tomorrow/bright","A lighthouse beam cutting through storm clouds over churning ocean. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["天","tiān","sky/day","A pilot banking through endless blue sky above the clouds, sun blazing on wings. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["早","zǎo","early/morning","A baker arriving before dawn, switching on warm oven lights in an empty kitchen. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["晚","wǎn","late/evening","A city street at dusk, the last light vanishing behind buildings. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["时","shí","time","A master watchmaker assembling tiny gears under a magnifying loupe. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["分","fēn","minute","A scientist carefully dividing a glowing sample into equal portions. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["点","diǎn","o'clock","A single candle flame pinpointing the exact center of a dark room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星","xīng","star","An astronaut floating before a window filled with billions of stars. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["期","qī","period/week","A calendar maker arranging seven tiles in perfect weekly order. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["号","hào","number/date","A harbor master calling out dock numbers through a foghorn at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["我","wǒ","I/me","A solo climber reaching the summit alone, pointing at herself against the sky. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["你","nǐ","you","A mirror maker reaching toward an infinite reflection of the viewer. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["他","tā","he/him","A lone cowboy striding down an empty sunlit main street at high noon. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["她","tā","she/her","A prima ballerina holding a final arabesque as the spotlight narrows to just her. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["它","tā","it","An autonomous robot arm working alone in a dark factory, sparks flying. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["我们","wǒmen","we/us","A team of climbers all reaching the summit together, arms raised. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["你们","nǐmen","you all","A conductor raising her baton before a vast orchestra waiting to play. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["他们","tāmen","they/them","A group of travelers walking together through golden mist toward a distant city. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["大家","dàjiā","everyone","A massive family reunion filling a sunlit courtyard, warmth and laughter. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["是","shì","to be","A notary stamping CONFIRMED on an official document under bright office light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["有","yǒu","to have","A collector surveying a room overflowing with treasures from around the world. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["没","méi","not have","An archaeologist shining a torch into a completely empty ancient chamber. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["不","bù","not/no","A judge bringing a gavel down hard — decision final. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["在","zài","at/in","A lighthouse keeper steadfast at his post through a raging storm. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["和","hé","and/with","A diplomat joining two rivals' hands in a sunlit conference room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["的","de","possessive","A jeweler stamping each piece with its owner's mark under a bright loupe. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["了","le","completion","A demolition expert watching a building come down in a cloud of dust. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["吗","ma","question particle","A game show host spinning to the camera with an enormous question mark behind him. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["呢","ne","soft question","A therapist leaning forward gently asking about feelings in a warm lamp-lit office. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["也","yě","also/too","Two rivers flowing side by side into the same sea at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["都","dōu","all/both","A census taker marking every single household on a vast map. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["很","hěn","very","A sprinter exploding off the blocks, pure intensity, motion blur. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["太","tài","too/excessively","A pot boiling over on a stove, steam everywhere, out of control. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["非常","fēicháng","extremely","A volcano erupting at full force, lava fountains against night sky. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["真","zhēn","really/truly","A lie detector machine with all needles flat, perfectly honest reading. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["最","zuì","most","The top of Everest at golden hour, the highest point on earth. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["比","bǐ","than","Two athletes at a starting line, one just ahead of the other. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["什么","shénme","what","A philosopher staring at a blank chalkboard, chalk raised, thinking. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["谁","shéi","who","A detective sweeping a flashlight across a lineup of shadowy suspects. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["哪","nǎ","which","A traveler at a five-way crossroads in fog, map in hand, uncertain. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["那","nà","that","A tour guide pointing dramatically at something far in the distance. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["这","zhè","this","An auctioneer slamming a gavel on THIS item, spotlight on it. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["这里","zhèlǐ","here","A surveyor planting a stake precisely marking this exact spot. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["那里","nàlǐ","there","A navigator pointing to a specific distant island from a ship's bridge. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["哪里","nǎlǐ","where","An explorer calling out in a vast cave, voice echoing into darkness. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["怎么","zěnme","how/why","An engineer puzzling over a tangle of wires and blueprints, brow furrowed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["为什么","wèishénme","why","A child looking up at a parent asking an unanswerable question. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["多少","duōshǎo","how many","A merchant counting coins on a scale in a candlelit bazaar. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["几","jǐ","how many (small)","A small child holding up fingers to count, concentrating intensely. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["人","rén","person","Two legs walking confidently forward into golden morning light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["男人","nánrén","man","A lumberjack standing proud in a misty forest clearing at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["女人","nǚrén","woman","A warrior queen in full armor before her throne in firelight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["孩子","háizi","child","A child running barefoot through a sun-drenched meadow, pure joy. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["男孩","nánhái","boy","A small boy in oversized boots stomping through puddles after rain. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["女孩","nǚhái","girl","A girl chasing fireflies in a summer garden at dusk. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["爸爸","bàba","dad","A father catching his daughter mid-leap from porch steps, laughing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["妈妈","māma","mom","A mother rolling dough at dawn, warm oven light behind her. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["哥哥","gēge","older brother","An older brother carrying his little sibling on his back up steep stairs. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["弟弟","dìdi","younger brother","A younger brother secretly trying on his big brother's uniform in a bedroom. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["姐姐","jiějie","older sister","An older sister teaching her sibling to dance in a warm afternoon living room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["妹妹","mèimei","younger sister","A little sister discovering a bird's nest in the garden, face lit with wonder. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["父母","fùmǔ","parents","Two parents watching their child graduate, tears of pride in golden light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["儿子","érzi","son","A young boy taking his first independent steps toward his father. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["女儿","nǚér","daughter","A father watching his daughter receive her diploma, beaming with pride. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["丈夫","zhàngfu","husband","A groom waiting at the altar, overwhelmed with emotion, sunlight streaming in. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["妻子","qīzi","wife","A bride in a flowing dress standing in a flower-filled garden at golden hour. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["朋友","péngyou","friend","Two old friends sharing a bench at sunset, laughing together. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["同学","tóngxué","classmate","Students gathered around a single desk studying together late at night. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["老师","lǎoshī","teacher","A wise professor writing on a floor-to-ceiling chalkboard before hundreds of students. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["学生","xuésheng","student","A student receiving a scholarship trophy, beaming under bright stage lights. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["医生","yīshēng","doctor","A surgeon performing a delicate operation under blazing surgical lights. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["护士","hùshi","nurse","A nurse stabilizing a patient in a field hospital tent with courage and calm. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["警察","jǐngchá","police","A police officer standing guard under a streetlamp in driving rain. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["司机","sījī","driver","A taxi driver navigating a neon-lit rainy intersection at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["厨师","chúshī","chef","A head chef plating a masterpiece dish at the pass under warm kitchen lights. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["服务员","fúwùyuán","waiter","A waiter gliding through a candlelit restaurant balancing three dishes. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["家","jiā","home/family","A family rushing out to greet someone arriving home at dusk, warm light inside. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["学校","xuéxiào","school","A headmaster opening school gates to hundreds of eager students at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["医院","yīyuàn","hospital","A chief physician striding into the hospital at dawn, white coat trailing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["银行","yínháng","bank","A bank manager overseeing a soaring marble main hall at opening time. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["商店","shāngdiàn","shop","A shop owner arranging goods perfectly as the OPEN sign goes up at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["超市","chāoshì","supermarket","Endless aisles of colorful goods stretching to the horizon under bright fluorescent light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["饭店","fàndiàn","restaurant/hotel","A hotel manager welcoming guests in a soaring marble lobby. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["餐厅","cāntīng","restaurant","An elegant restaurant filled with candlelight and the sound of clinking glasses. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["机场","jīchǎng","airport","An air traffic controller guiding planes from a glass tower at dusk, runways glowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["火车站","huǒchēzhàn","train station","A stationmaster blowing his whistle as a steam train departs in billowing white cloud. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["地铁","dìtiě","subway","A metro driver steering the first train through a new tunnel, lights blazing in darkness. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["公园","gōngyuán","park","Cherry blossoms falling in a sunlit park, petals drifting over a stone path. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["图书馆","túshūguǎn","library","A vast library hall with towering shelves, a single reader under a warm lamp. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["公司","gōngsī","company","A glass office tower reflecting clouds, executives visible through floor-to-ceiling windows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["水","shuǐ","water","A waterfall thundering into a crystal pool, mist catching rainbow light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["火","huǒ","fire","A glassblower drawing a molten orb from a roaring furnace, fire reflecting everywhere. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["山","shān","mountain","An impossibly tall peak piercing the clouds at golden hour, vast and silent. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["河","hé","river","A kayaker shooting through churning white water rapids at full speed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["海","hǎi","sea","An ocean stretching to the horizon in every direction at golden hour. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["天气","tiānqì","weather","A meteorologist standing before a swirling storm system on a giant screen. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["雨","yǔ","rain","A tropical downpour hammering a city street, puddles exploding with drops. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["雪","xuě","snow","A ski patroller carving through deep powder at dawn, snow spraying. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["风","fēng","wind","A kite master releasing a magnificent dragon kite into a fierce wind over a hilltop. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["太阳","tàiyáng","sun","The blazing sun at zenith over a desert, heat shimmer on sand. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["月亮","yuèliang","moon","A full moon reflected perfectly in a still mountain lake at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星星","xīngxing","stars","A billion stars blazing over a dark desert, Milky Way arching above. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["猫","māo","cat","A cat stretching across a sunlit studio skylight, totally at ease. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["狗","gǒu","dog","A police dog leaping to clear a high obstacle in a training yard. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["鱼","yú","fish","A fisherman hauling a gleaming net of silver fish from a dawn-lit sea. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["鸟","niǎo","bird","An ornithologist spotting a rare iridescent bird in the high rainforest canopy. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["马","mǎ","horse","A horse galloping across an open plain at sunset, mane flying. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["牛","niú","cow","A massive ox pulling a plow through a misty rice paddy at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["羊","yáng","sheep","A flock of sheep on a green hillside at dusk, shepherd silhouetted against sky. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["猪","zhū","pig","A contented pig resting in golden straw, afternoon light streaming through a barn door. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["吃","chī","eat","A food critic taking his first bite of a masterpiece dish, eyes widening with delight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["喝","hē","drink","A sommelier swirling deep red wine in a candlelit cellar, centuries of oak around him. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["说","shuō","speak","An orator commanding ten thousand listeners with his voice in a vast amphitheater. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["听","tīng","listen","A music producer leaning in, eyes closed, headphones on, completely absorbed in sound. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["看","kàn","look/watch","A scout scanning a vast landscape through a telescope from a high watchtower. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["写","xiě","write","A calligrapher drawing a single brushstroke across white paper — perfect and irreversible. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["读","dú","read","A scholar reading by candlelight, surrounded by towering stacks of ancient books. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["问","wèn","ask","A reporter raising her hand boldly at a press conference, cameras flashing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["叫","jiào","call/be called","A drill sergeant bellowing a command across a parade ground, soldiers snapping to attention. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["买","mǎi","buy","An antique hunter holding up a rare find at a crowded market stall, eyes shining. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["卖","mài","sell","A market vendor calling out her wares from a colorful cart at dusk, lanterns glowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["打","dǎ","hit/play","A boxer landing a perfect jab, sweat flying, corner lights blazing, motion blur. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["走","zǒu","walk/go","A pilgrim walking a stone mountain path alone at dawn, mist swirling around. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["跑","pǎo","run","A sprinter exploding off the blocks, all muscle and speed, crowd roaring. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["来","lái","come","A soldier stepping off a train as family rushes forward to embrace him, golden light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["去","qù","go","An astronaut climbing into a rocket, ready to depart, fire and steam below. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["回","huí","return","A traveler returning through the village gate after years away, warm lanterns welcoming. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["进","jìn","enter","An explorer pushing open an ancient stone door into an undiscovered chamber, torchlight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["出","chū","exit","A performer bursting out from stage curtains into blazing spotlight, audience roaring. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["开","kāi","open/start","A locksmith cracking a great vault open, light spilling out dramatically. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["关","guān","close/off","A night watchman sealing great museum doors at midnight, footsteps echoing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["坐","zuò","sit","A meditating monk in perfect lotus position as incense spirals upward, stone floor. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["站","zhàn","stand","A palace guard standing ramrod straight at the golden gate, motionless for hours. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["睡","shuì","sleep","A night nurse watching over sleeping patients in blue moonlit silence. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["工作","gōngzuò","work","A foreman overseeing a towering skyscraper under construction at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["学习","xuéxí","study","A student studying alone under a single lamp in an empty library at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["喜欢","xǐhuan","like","A collector carefully adding her latest treasure to a beloved wall of objects. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["爱","ài","love","A couple embracing against a sunset horizon, photographer capturing the moment. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["想","xiǎng","think/want","A dreamer gazing out a rain-streaked attic window, lost in thought. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["知道","zhīdào","know","A sage sitting in a candlelit sanctum surrounded by scrolls of knowledge. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["觉得","juéde","feel/think","A therapist listening with deep empathy, ocean light through a window. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["告诉","gàosu","tell","A messenger arriving breathless to deliver urgent news by candlelight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["认识","rènshi","know (person)","Two strangers being introduced, shaking hands in a sunlit room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["请","qǐng","please/invite","A royal herald formally inviting guests into a palace with a gracious bow. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["谢谢","xièxie","thank you","An award recipient tearfully thanking everyone on stage, flowers everywhere. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["对不起","duìbuqǐ","sorry","A diplomat making a formal apology across a negotiating table, gravity in the room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["没关系","méiguānxi","no problem","A mediator gesturing calmly as tension dissolves in a sunlit room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["再见","zàijiàn","goodbye","A retiring general taking his final salute as troops stand at attention. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["你好","nǐhǎo","hello","An ambassador extending her hand in a warm greeting at an international reception. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["对","duì","correct","A referee blowing a whistle decisively, signaling a correct call. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["好","hǎo","good","A teacher beaming as all students pass their exams, gold stars on every paper. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["大","dà","big","A sculptor dwarfed by a colossal marble figure he is carving, stone dust flying. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["小","xiǎo","small","A jeweler examining a tiny perfect diamond through a loupe, pinpoint light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["多","duō","many","A florist surrounded by thousands of blooming flowers in every color. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["少","shǎo","few","A minimalist chef placing a single perfect ingredient on a vast white plate. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["冷","lěng","cold","A polar researcher stepping outside into a blizzard, breath freezing instantly. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["热","rè","hot","A glassblower's face glowing orange in furnace heat, sweat gleaming. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["忙","máng","busy","A stock trader surrounded by flashing screens, phones ringing, papers flying. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["累","lèi","tired","A marathon runner crossing the finish line and collapsing with exhaustion. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["渴","kě","thirsty","A hiker in a desert reaching desperately for a canteen, cracked lips, blazing sun. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["饿","è","hungry","A child pressing her face against a bakery window, eyes wide with longing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["高兴","gāoxìng","happy","A wedding reception hall filled with dancing and laughter, golden light everywhere. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["开心","kāixīn","joyful","A child on a swing at maximum height, face pure delight, sky behind. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["难过","nánguò","sad","A person sitting alone in an empty train station at night, rain on the windows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["生气","shēngqì","angry","A thunderstorm over a city at night, lightning cracking, tension in the air. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["健康","jiànkāng","healthy","An athlete at peak form crossing a finish line, body perfectly tuned. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["生病","shēngbìng","sick","A pharmacist carefully measuring medicine in soft clinical light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["钱","qián","money","A financier standing before an open vault stacked with gold bars, cold light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["书","shū","book","A novelist typing the final word of her book in a candlelit mountain cabin. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["衣服","yīfu","clothes","A fashion designer draping a couture gown on a mannequin under studio lights. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["裤子","kùzi","pants","A tailor cutting a perfect crease into fine dress trousers, warm light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["帽子","màozi","hat","A milliner placing her finest creation on a velvet display stand, soft light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["鞋","xié","shoes","A cobbler hand-stitching a perfect leather sole by lamplight, craftsmanship. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["饭","fàn","meal/rice","A head chef placing a perfect bowl of steaming rice at the pass. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["菜","cài","dish/vegetable","A farmer harvesting armfuls of vivid green vegetables at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["肉","ròu","meat","A butcher displaying a perfect prime cut under warm market lights. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["茶","chá","tea","A tea master pouring a perfect arc of golden tea from a great height, steam rising. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["咖啡","kāfēi","coffee","A barista pouring a perfect rosette latte art in a morning cafe, steam and aroma. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["牛奶","niúnǎi","milk","Fresh cold milk pouring from a glass bottle, droplets frozen in midair. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["果汁","guǒzhī","juice","Fresh squeezed orange juice pouring into a glass, fruit slices around it. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["水果","shuǐguǒ","fruit","A farmer's market overflowing with vivid tropical fruit in morning light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["苹果","píngguǒ","apple","A single perfect red apple on a wooden table in a shaft of window light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["面条","miàntiáo","noodles","A chef pulling perfect hand-made noodles in a steamy kitchen. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["米饭","mǐfàn","cooked rice","A bowl of perfect fluffy white rice steaming in soft kitchen light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["面包","miànbāo","bread","A freshly baked golden loaf just pulled from a stone oven, steam rising. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["车","chē","vehicle","A vintage car viewed from above on an empty desert highway. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["汽车","qìchē","car","A sleek car accelerating on a rain-slicked night road, headlights blazing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["火车","huǒchē","train","A steam locomotive thundering through mountain valleys, smoke billowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["飞机","fēijī","airplane","A jet lifting off at dawn, nose rising into clouds, runway lights below. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["船","chuán","boat","A captain steering through a fierce storm, jaw set, hands firm on the wheel. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["自行车","zìxíngchē","bicycle","A cyclist racing through a sunlit forest path, light filtering through leaves. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["出租车","chūzūchē","taxi","A yellow taxi cutting through a rainy neon city at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["公共汽车","gōnggòng qìchē","bus","A city bus moving through heavy morning traffic, passengers visible inside. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["路","lù","road","A new highway stretching to the horizon at sunset, empty and vast. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["手机","shǒujī","phone","A phone lit up in someone's hand in a dark room, the only light source. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["电话","diànhuà","telephone","An old telephone ringing in a dim hallway, urgency in the sound. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["电脑","diànnǎo","computer","A hacker's fingers flying across a keyboard in a blue-lit server room. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["电视","diànshì","television","A live broadcast beginning, director calling action, monitors glowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["照片","zhàopiàn","photo","A photographer capturing a decisive moment, camera click frozen in time. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["音乐","yīnyuè","music","An orchestra playing in a grand concert hall, sound filling every space. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["电影","diànyǐng","movie","A film projector casting images in a dark cinema, dust motes in the beam. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["颜色","yánsè","color","A painter's palette overflowing with every vivid color in afternoon light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["红","hóng","red","A bullfighter swirling a blazing red cape in a sun-drenched arena. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["黄","huáng","yellow","Golden sunflowers stretching to the horizon under a blazing summer sky. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["蓝","lán","blue","A diver gliding through a cathedral of deep blue water above a coral reef. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["绿","lǜ","green","A botanist standing in a lush tropical greenhouse, green in every direction. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["白","bái","white","A photographer framing a shot of pure white Antarctic ice to the horizon. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["黑","hēi","black","A charcoal artist making bold black strokes across a white wall. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["中国","Zhōngguó","China","The Great Wall stretching over misty mountains at golden hour. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["北京","Běijīng","Beijing","The Forbidden City at dawn, ancient rooftops glowing in first light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["上海","Shànghǎi","Shanghai","Shanghai skyline at night, lights reflecting in the Huangpu River. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["汉语","Hànyǔ","Chinese language","Ancient Chinese calligraphy brushstrokes on rice paper, ink fresh. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["普通话","pǔtōnghuà","Mandarin","A language class with students from every country learning together. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["英语","Yīngyǔ","English","Big Ben at dusk reflected in a puddle on a London street. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["名字","míngzi","name","A calligrapher engraving a name into a jade seal by candlelight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["身体","shēntǐ","body","A classical sculpture of the human form in museum light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["头","tóu","head","A portrait sculptor adding the final detail to a monumental stone head. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["眼睛","yǎnjing","eyes","A close-up of a human eye, iris detail extraordinary, light reflecting. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["耳朵","ěrduo","ears","A sound engineer adjusting levels, listening intensely through headphones. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["嘴","zuǐ","mouth","An opera singer in full voice, mouth open, chandelier trembling. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["手","shǒu","hand","A surgeon scrubbing hands meticulously before an operation, water flowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["脚","jiǎo","foot","A ballet dancer en pointe, a single foot perfectly balanced on stage. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["东","dōng","east","The sun rising through a bamboo grove, golden beams piercing mist. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["西","xī","west","A sunset turning the western sky into fire over a desert landscape. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["南","nán","south","A tropical beach, palm trees, turquoise water, blazing southern sun. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["北","běi","north","The Northern Lights blazing over a frozen tundra at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["左","zuǒ","left","A conductor's left hand leading the strings in a dramatic passage. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["右","yòu","right","A right-handed archer drawing back, eye on target, perfect form. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["前","qián","front/before","A general at the front of his troops, leading the charge. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["后","hòu","back/after","A rearguard soldier watching from behind as troops advance ahead. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["上","shàng","up/on","A mountaineer hauling herself to the final peak, arm raised above all. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["下","xià","down/under","A deep sea diver plunging into the blue abyss, bubbles trailing upward. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["里","lǐ","inside","A spelunker exploring deep inside an enormous cave, torch light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["外","wài","outside","A traveler stepping out of a building into a vast open landscape. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["旁边","pángbiān","beside","Two friends walking side by side through a city at dusk. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["中间","zhōngjiān","middle","A tightrope walker perfectly centered between two cliff faces. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["因为","yīnwèi","because","A detective pointing to the root cause on an evidence board. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["所以","suǒyǐ","therefore","A judge pointing to the logical conclusion written on a document. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["但是","dànshì","but","A bridge between two cliffs — one dark, one light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["如果","rúguǒ","if","A fork in a road disappearing into two different horizons. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["虽然","suīrán","although","Storm clouds on one side, sunshine breaking through on the other. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["一起","yīqǐ","together","A team of rowers pulling in perfect unison on a river at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["已经","yǐjīng","already","An empty chair at a desk, work finished, coffee cold, owner gone. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["还是","háishi","or (question)","Two paths diverging in a forest, both equally compelling. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["就","jiù","then/right away","A starter pistol firing, runners instantly in motion. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["才","cái","just now","A seedling just breaking through soil in first morning light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["再","zài","again","A wave pulling back and crashing again, endlessly repeated. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["还","hái","still/also","A candle still burning in a window long after everyone has left. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["只","zhǐ","only","A single spotlight on an empty stage, everything else dark. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["别","bié","don't","A hand raised to halt, palm facing outward, decisive. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["把","bǎ","disposal marker","A worker gripping a tool firmly about to act on a material. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["被","bèi","passive marker","A clay vessel being shaped by invisible hands on a wheel. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["给","gěi","give/for","Two hands carefully passing a gift across a table. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["让","ràng","let/allow","A guard stepping aside to allow someone through a gate. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["从","cóng","from","A messenger riding hard away from castle gates at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["到","dào","to/arrive","A marathon runner breaking the tape at the finish line, arms wide. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["向","xiàng","towards","An archer aiming directly at a distant target, arrow ready. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["离","lí","away from","A bird taking flight from a branch, gaining distance in slow motion. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["跟","gēn","with/follow","A shadow following exactly behind its person on a sunlit path. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["比较","bǐjiào","relatively","Two objects side by side on a scale being precisely measured. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["一点儿","yīdiǎnr","a little","A single drop of ink falling into a vast bowl of clear water. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["有点儿","yǒudiǎnr","somewhat","A thermometer showing a reading just slightly above normal. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["一共","yīgòng","altogether","A cashier totaling up all items on a register, the final sum. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["一样","yīyàng","same","Identical twin sisters standing side by side, mirror images. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["一直","yīzhí","always/straight","A road stretching perfectly straight to the horizon without a single turn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["问题","wèntí","question/problem","A scientist staring at an equation on a whiteboard that won't solve. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["事情","shìqing","matter/thing","A lawyer organizing case files on a desk, lamplight, urgency. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["时间","shíjiān","time","An hourglass with the last grains of sand falling, dramatic light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["地方","dìfang","place","A cartographer marking a special location on a vast hand-drawn map. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["方法","fāngfǎ","method","A master craftsman demonstrating the precise technique to an apprentice. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["原因","yuányīn","reason/cause","A forensic investigator finding the root cause in a chain of evidence. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["结果","jiéguǒ","result","A scientist reading the outcome of an experiment, results in hand. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["生活","shēnghuó","life/lifestyle","A family around a dinner table at dusk, warmth and connection. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["语言","yǔyán","language","A polyglot switching fluidly between conversations at a global summit. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["文化","wénhuà","culture","Ancient artifacts arranged in a museum, civilizations on display. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["历史","lìshǐ","history","An ancient scroll unrolling to reveal centuries of recorded events. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["国家","guójiā","country","A country's flag rising at sunrise over a government building. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["世界","shìjiè","world","Earth seen from space, the whole planet glowing against darkness. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["季节","jìjié","season","Four trees showing all four seasons simultaneously in split light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["春天","chūntiān","spring","Cherry blossoms exploding into bloom along a sunlit river path. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["夏天","xiàtiān","summer","A beach at high noon, waves sparkling, heat rising from sand. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["秋天","qiūtiān","autumn","A forest of red and gold leaves in peak autumn, one leaf falling. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["冬天","dōngtiān","winter","A village buried in deep snow at night, warm lights in windows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["生日","shēngrì","birthday","A birthday cake lit with candles in a dark room, faces glowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["节日","jiérì","holiday","A festival parade filling a night street with lanterns and color. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["礼物","lǐwù","gift","A beautifully wrapped gift on a table, anticipation in the air. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["爱好","àihào","hobby","A painter lost in their work in a sun-drenched studio. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["运动","yùndòng","exercise/sport","An athlete training at peak intensity in an empty stadium at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["游泳","yóuyǒng","swim","A swimmer cutting through a pool at speed, water parting perfectly. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["跳舞","tiàowǔ","dance","A dancer leaping in a spotlight, arms wide, pure joy. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["唱歌","chànggē","sing","A street musician singing under a streetlamp at night, voice rising. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["旅游","lǚyóu","travel","A traveler arriving at a breathtaking destination, bags at their feet. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["药","yào","medicine","A pharmacist precisely measuring medicine in soft clinical light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["病","bìng","illness","A fever thermometer in a dim bedroom, the patient resting. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["感冒","gǎnmào","cold (illness)","A person wrapped in blankets with tea, winter light through the window. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["发烧","fāshāo","fever","A forehead glowing with heat, cool cloth being applied. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["头痛","tóutòng","headache","A person holding their head, pulsing light suggesting pain. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["桌子","zhuōzi","table","A carpenter sanding a handmade oak table, wood grain glowing. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["椅子","yǐzi","chair","A designer sitting in her own creation for the first time — perfect fit. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["床","chuáng","bed","A pristine white hotel bed with a city view behind, luxury. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["房间","fángjiān","room","A sunlit empty room with tall windows, dust motes floating. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["门","mén","door","An ancient city gate opening at dawn, massive iron hinges. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["窗","chuāng","window","Afternoon light streaming through a tall window onto a wooden floor. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["花","huā","flower","A single perfect flower in bloom against a dark background, dew on petals. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["树","shù","tree","A massive ancient tree in a forest, roots spreading wide, canopy towering. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["草","cǎo","grass","Morning dew on grass blades in first light, a million tiny diamonds. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["动物","dòngwù","animal","A wildlife photographer capturing a rare moment in golden savanna light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["地图","dìtú","map","An explorer's hand-drawn map spread on a table, X marking a destination. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["护照","hùzhào","passport","A passport being stamped at a border crossing, traveler moving on. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["行李","xíngli","luggage","Luggage on a carousel at an airport, travelers watching and waiting. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["价格","jiàgé","price","A market price tag on a rare object, buyer examining it closely. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["故事","gùshi","story","A grandmother telling a story to children around a fire at night. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["词","cí","word","A single character carved into stone, centuries old, still sharp. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["句子","jùzi","sentence","A typewriter with a single line just completed, paper waiting. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["课","kè","lesson/class","Students filing into a lecture hall, anticipation in the air. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["作业","zuòyè","homework","A student working late at a desk, single lamp, books everywhere. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["考试","kǎoshì","exam","Students bent over papers in a silent examination hall. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["成绩","chéngjì","grade/result","A report card being opened with trembling hands, results inside. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["漂亮","piàoliang","beautiful","A model in a flowing dress in a field of wildflowers at golden hour. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["聪明","cōngming","clever","A chess prodigy studying a board, three moves ahead, intense focus. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["重要","zhòngyào","important","A signed treaty being sealed with a golden stamp, history being made. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["容易","róngyì","easy","A key sliding perfectly into a lock with no resistance. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["难","nán","difficult","A rock climber clinging to an impossible vertical cliff face. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["快","kuài","fast","A cheetah in full sprint across the savanna, pure speed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["慢","màn","slow","A snail making its way across a rain-wet leaf in extreme closeup. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["贵","guì","expensive","A jeweler presenting a priceless diamond in a velvet box. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["便宜","piányi","cheap","A happy shopper surrounded by bargain finds at a colorful market. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["高","gāo","tall","A skyscraper disappearing into clouds, shot from street level looking up. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["矮","ǎi","short (height)","A child's perspective looking up at a world of giant adult legs. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["长","cháng","long","A river stretching endlessly through a valley from aerial view. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["短","duǎn","short (length)","A tiny pencil stub, almost used up, on a vast empty desk. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["新","xīn","new","A product just unwrapped, gleaming pristine in clean white light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["旧","jiù","old (object)","A beloved worn leather chair in a study, decades of use visible. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["干净","gānjìng","clean","A spotless white kitchen after a deep clean, everything gleaming. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["脏","zāng","dirty","A child's muddy boots left at a door after playing in rain. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["有名","yǒumíng","famous","A celebrity arriving at a premiere, flashing cameras everywhere. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["好吃","hǎochī","delicious","A chef's dish arriving at a table, diner's eyes lighting up. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["好喝","hǎohē","tasty (drink)","A person taking the first sip of a perfect cold drink on a hot day. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["下雨","xiàyǔ","to rain","Rain beginning to fall on a city street, first drops on pavement. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["下雪","xiàxuě","to snow","The first snowflakes of winter falling in a city at night. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["刮风","guāfēng","to be windy","A fierce wind bending trees on a hilltop, dramatic clouds. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["暖和","nuǎnhuo","warm","Afternoon sun warming a stone bench in a garden, cats napping. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["凉快","liángkuai","cool/refreshing","A cool breeze over a lake on a summer day, ripples on the water. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["工作","gōngzuò","work","An architect studying blueprints in a construction site at sunrise. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["休息","xiūxi","rest","A hiker resting against a tree after a long climb, mountain view. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["睡觉","shuìjiào","sleep","A child deeply asleep in soft lamplight, peaceful and safe. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["起床","qǐchuáng","get up","First light entering a bedroom as someone rises from bed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["做饭","zuòfàn","cook","A home cook adding spices to a simmering pot, kitchen fragrant. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["洗","xǐ","wash","Hands being washed under running water, soap lathering. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["穿","chuān","wear","A tailor helping a client into a perfectly fitted suit. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["玩","wán","play","Children playing freely in a summer park, pure uninhibited joy. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["找","zhǎo","look for","A archaeologist carefully excavating, searching for something buried. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["用","yòng","use","A craftsman picking up the perfect tool for the job. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["拿","ná","take/hold","A surgeon's steady hand reaching for a precise instrument. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["放","fàng","put/place","A museumworker carefully placing a priceless artifact in its display. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["送","sòng","send/give","A delivery person handing over a package with a warm smile. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["带","dài","bring/carry","A hiker with a heavy pack crossing a mountain pass at dawn. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["借","jiè","borrow/lend","A librarian carefully handing a rare book to a researcher. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["还","huán","return (object)","A person returning a borrowed item across a doorstep with gratitude. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["付","fù","pay","A hand placing exact payment on a counter, transaction complete. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["换","huàn","exchange","A currency exchange, two different bills crossing over a counter. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["接","jiē","receive/pick up","Arms reaching out to catch something falling, perfectly timed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["等","děng","wait","A person sitting on a platform bench as trains pass, patient. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["帮助","bāngzhù","help","Two people lifting a heavy object together, perfectly coordinated. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["开始","kāishǐ","start","A race official firing a starting pistol, runners launching forward. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["结束","jiéshù","end","The final curtain falling on a stage, show complete. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["准备","zhǔnbèi","prepare","A chef laying out all ingredients in perfect order before cooking. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["打算","dǎsuàn","plan","A strategist mapping out a plan on a whiteboard with precise arrows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["希望","xīwàng","hope","A person gazing at a far horizon as sun breaks through storm clouds. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["应该","yīnggāi","should","A mentor pointing firmly to the right path at a crossroads. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["需要","xūyào","need","A plant desperately reaching toward a beam of sunlight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["可以","kěyǐ","can/may","A green light turning on, permission granted, road clear ahead. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["会","huì","can (skill)","A pianist playing a flawless passage, fingers confident on keys. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["能","néng","can (ability)","A weightlifter achieving a personal record, peak human capability. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["要","yào","want/need","A child reaching urgently toward something just out of reach. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["得到","dédào","obtain/get","A climber finally reaching the summit and claiming the prize. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["离开","líkāi","leave","A figure walking away down a long empty road into the distance. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["出发","chūfā","set off","An expedition team taking their first steps into unknown territory. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["到达","dàodá","arrive","A weary traveler finally seeing their destination on the horizon. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["迟到","chídào","be late","A person running full speed toward closing train doors. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["介绍","jièshào","introduce","Two strangers being introduced at a party, hands extended, smiling. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["回答","huídá","answer","A student confidently raising their hand with the answer. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["打电话","dǎ diànhuà","make a call","A person urgently calling someone from a vintage payphone. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["看病","kànbìng","see a doctor","A patient describing symptoms to an attentive doctor in soft light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["爬山","páshān","climb mountain","A climber ascending a dramatic rocky peak, clouds below. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["拍照","pāizhào","take photo","A photographer framing the perfect shot at golden hour. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["踢足球","tī zúqiú","play soccer","A footballer striking the ball perfectly at goal, crowd roaring. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["打篮球","dǎ lánqiú","play basketball","A basketball player dunking dramatically in an arena at full capacity. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["听音乐","tīng yīnyuè","listen to music","A person lying on a rooftop under stars with headphones, lost in sound. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["看电影","kàn diànyǐng","watch a movie","A cinema audience in the dark, faces lit by the screen, absorbed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["看电视","kàn diànshì","watch TV","A family gathered on a sofa watching together in warm evening light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["看书","kànshū","read books","A reader absorbed in a book in a garden, sunlight through leaves. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["发短信","fā duǎnxìn","send a text","Thumbs typing a message, phone glowing, night context. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["出租车","chūzūchē","taxi","A taxi driver navigating a neon-lit rainy city intersection at midnight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["报纸","bàozhǐ","newspaper","A press operator holding up a fresh front page, ink still wet. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["信","xìn","letter (mail)","A hand-written letter being sealed with wax, candlelight. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["钥匙","yàoshi","key","A large iron key turning in an ancient lock, mechanism engaging. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["票","piào","ticket","A golden ticket being presented at a grand theater entrance. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["包","bāo","bag","An explorer's worn leather satchel packed for adventure. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["碗","wǎn","bowl","A beautifully glazed ceramic bowl of steaming soup in dim light. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["筷子","kuàizi","chopsticks","Chopsticks picking up a perfect dumpling, steam rising. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["杯子","bēizi","cup","A perfect cup of tea, steam curling, hands warming around it. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["刀","dāo","knife","A master chef's knife catching light, perfectly balanced in hand. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期","xīngqī","week","A calendar showing seven days, each marked with an activity. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期一","xīngqīyī","Monday","An office beginning to fill at sunrise, the week starting fresh. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期二","xīngqīèr","Tuesday","A city in full productive motion, second day energy. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期三","xīngqīsān","Wednesday","Midweek, the sun at its highest point over a busy city. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期四","xīngqīsì","Thursday","The last sprint before the week's end, energy still high. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期五","xīngqīwǔ","Friday","The office emptying as evening comes, weekend beginning. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期六","xīngqīliù","Saturday","A farmers' market in full swing on a beautiful morning. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["星期天","xīngqītiān","Sunday","A family reading together in a sunlit home, complete rest. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["今天","jīntiān","today","A sunrise marking the beginning of a new day, full of possibility. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["明天","míngtiān","tomorrow","The sun just beginning to rise on the distant horizon, tomorrow arriving. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["昨天","zuótiān","yesterday","A faded photograph on a table, memories of what has passed. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["现在","xiànzài","now","A clock striking the present moment, hands perfectly aligned. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["上午","shàngwǔ","morning (AM)","A productive morning office, sun streaming in, work in full flow. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["下午","xiàwǔ","afternoon (PM)","Golden afternoon light slanting through tall windows. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["晚上","wǎnshang","evening","A city at night, lights coming on, the evening beginning. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["早上","zǎoshang","morning","Dew on a spider's web in first light, the world just waking. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["中午","zhōngwǔ","noon","The sun directly overhead, shadows at their shortest, midday heat. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["小时","xiǎoshí","hour","A grandfather clock marking the hour in a silent hallway. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+["分钟","fēnzhōng","minute","A stopwatch counting down in a tense competition. Cinematic, photorealistic, 8k. No text, no letters, no symbols."],
+];
+
+// ── State ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY_PROGRESS = 'hsk1_workflow_progress_v2';
+const STORAGE_KEY_IMAGES   = 'hsk1_cards_v1';
+
+let currentIndex  = 0;
+let doneCount     = 0;
+let skipCount     = 0;
+let savedImages   = {};
+let currentBase64 = null; // ← THE FIX: module-level variable
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function init() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_IMAGES);
+    if (raw) savedImages = JSON.parse(raw);
+  } catch(e) { savedImages = {}; }
+
+  try {
+    const prog = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS) || '{}');
+    currentIndex = prog.currentIndex || 0;
+    skipCount    = prog.skipCount    || 0;
+  } catch(e) {}
+
+  doneCount = Object.keys(savedImages).length;
+
+  while (currentIndex < HSK1.length && savedImages[HSK1[currentIndex][0]]) {
+    currentIndex++;
+  }
+
+  renderCard();
+  renderThumbs();
+  updateStats();
+}
+
+// ── Render card ───────────────────────────────────────────────────────────
+function renderCard() {
+  if (currentIndex >= HSK1.length) { showDone(); return; }
+  const [hanzi, pinyin, meaning] = HSK1[currentIndex];
+  document.getElementById('cur-char').textContent    = hanzi;
+  document.getElementById('cur-pinyin').textContent  = pinyin;
+  document.getElementById('cur-meaning').textContent = meaning;
+  document.getElementById('cur-index').textContent   = 'Card ' + (currentIndex+1) + ' of ' + HSK1.length;
+  document.getElementById('prompt-box').textContent  = buildPrompt(currentIndex);
+  clearUpload();
+  const btn = document.getElementById('btn-copy');
+  btn.textContent = '📋 Copy Prompt';
+  btn.classList.remove('copied');
+}
+
+function buildPrompt(idx) {
+  return HSK1[idx][3];
+}
+
+// ── Copy ──────────────────────────────────────────────────────────────────
+function copyPrompt() {
+  const text = buildPrompt(currentIndex);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ COPIED! NOW PASTE INTO CHATGPT';
+    btn.classList.add('copied');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ COPIED! NOW PASTE INTO CHATGPT';
+    btn.classList.add('copied');
+  });
+}
+
+// ── File handling ─────────────────────────────────────────────────────────
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Store at module level — this is the fix
+    currentBase64 = e.target.result;
+
+    const img = document.getElementById('preview-img');
+    img.src = currentBase64;
+    img.style.display = 'block';
+
+    document.getElementById('upload-placeholder').style.display = 'none';
+    document.getElementById('upload-zone').classList.add('has-image');
+
+    document.getElementById('btn-keep').disabled = false;
+    document.getElementById('btn-redo').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Keep ──────────────────────────────────────────────────────────────────
+function keepImage() {
+  if (!currentBase64) {
+    alert('No image loaded yet — please upload an image first.');
+    return;
+  }
+
+  const hanzi = HSK1[currentIndex][0];
+  savedImages[hanzi] = currentBase64;
+
+  try {
+    localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(savedImages));
+  } catch(e) {
+    alert('Storage full! Download your progress first, then continue.');
+    return;
+  }
+
+  doneCount = Object.keys(savedImages).length;
+  advance();
+}
+
+// ── Redo ──────────────────────────────────────────────────────────────────
+function redoImage() {
+  clearUpload();
+}
+
+// ── Skip ──────────────────────────────────────────────────────────────────
+function skipCard() {
+  skipCount++;
+  saveProgress();
+  advance();
+}
+
+// ── Advance ───────────────────────────────────────────────────────────────
+function advance() {
+  currentIndex++;
+  while (currentIndex < HSK1.length && savedImages[HSK1[currentIndex][0]]) {
+    currentIndex++;
+  }
+  saveProgress();
+  renderCard();
+  renderThumbs();
+  updateStats();
+}
+
+// ── Clear upload ──────────────────────────────────────────────────────────
+function clearUpload() {
+  currentBase64 = null;
+  const img = document.getElementById('preview-img');
+  img.src = '';
+  img.style.display = 'none';
+  document.getElementById('upload-placeholder').style.display = 'block';
+  document.getElementById('upload-zone').classList.remove('has-image');
+  document.getElementById('btn-keep').disabled = true;
+  document.getElementById('btn-redo').disabled = true;
+  document.getElementById('file-input').value = '';
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('done-count').textContent  = doneCount;
+  document.getElementById('total-count').textContent = HSK1.length;
+  document.getElementById('skip-count').textContent  = skipCount;
+  document.getElementById('strip-count').textContent = doneCount;
+
+  const remaining = HSK1.length - doneCount - skipCount;
+  const mins = remaining * 3;
+  const hrs  = (mins / 60).toFixed(1);
+  document.getElementById('eta').textContent = hrs + 'h';
+
+  const pct = (doneCount / HSK1.length * 100).toFixed(1);
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+// ── Thumbnails ─────────────────────────────────────────────────────────────
+function renderThumbs() {
+  const strip = document.getElementById('thumb-strip');
+  strip.innerHTML = '';
+  const entries = Object.entries(savedImages).slice(-20);
+  entries.forEach(([hanzi, b64]) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = '<img src="' + b64 + '" alt="' + hanzi + '"><span class="thumb-char">' + hanzi + '</span>';
+    div.onclick = () => {
+      if (confirm('Remove image for ' + hanzi + '?')) {
+        delete savedImages[hanzi];
+        localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(savedImages));
+        doneCount = Object.keys(savedImages).length;
+        renderThumbs();
+        updateStats();
+      }
+    };
+    strip.appendChild(div);
+  });
+
+  if (doneCount >= HSK1.length) showDone();
+}
+
+// ── Save progress ───────────────────────────────────────────────────────────
+function saveProgress() {
+  localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify({ currentIndex, skipCount }));
+}
+
+// ── Done ────────────────────────────────────────────────────────────────────
+function showDone() {
+  document.getElementById('card-info').style.display  = 'none';
+  document.getElementById('prompt-box').style.display = 'none';
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('btn-copy').style.display   = 'none';
+  document.getElementById('done-panel').classList.add('visible');
+}
+
+// ── Download JSON ───────────────────────────────────────────────────────────
+function downloadJSON() {
+  const json = JSON.stringify(savedImages, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'hsk1_images.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Start ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
