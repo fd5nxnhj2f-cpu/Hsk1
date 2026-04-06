@@ -771,7 +771,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Lora',s
   <button class="save-btn" onclick="loadFromFile()">Restore</button>
   <input type="file" id="loadFileInput" accept=".json" onchange="handleFileLoad(event)" style="display:none">
   <button class="save-btn" onclick="openGenPanel()" title="Generate memory palace cards">🎨 Cards</button>
-  <button class="save-btn" onclick="document.getElementById('cardsFileInput').click()">📥 Import</button>
+ <label class="save-btn" style="cursor:pointer">📥 Import<input type="file" accept=".json" onchange="handleCardsImport(event)" style="display:none"></label>
   <input type="file" id="cardsFileInput" accept=".json" onchange="handleCardsImport(event)" style="display:none">
   <button class="save-btn primary" onclick="saveToFile()">Backup</button>
 </div>
