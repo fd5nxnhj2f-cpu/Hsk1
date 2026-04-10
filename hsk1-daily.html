@@ -53,12 +53,14 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Lora',s
 .view.active{display:block}
 
 /* ── SAVE BAR ── */
-.save-bar{
+..save-bar{
   position:fixed;top:0;left:0;right:0;z-index:40;
   display:flex;align-items:center;gap:.5rem;padding:.4rem .8rem;
   background:var(--paper);border-bottom:1px solid var(--border);
   font-family:'Space Mono',monospace;font-size:.62rem;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;
 }
+
 .save-status{flex:1;color:var(--muted);font-size:.6rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .save-status.saved{color:var(--green)}
 .save-btn{
