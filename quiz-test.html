@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quiz Button Test</title>
+<style>
+html,body{height:100%;margin:0;background:#f5f0e8;color:#1a1208;overflow:hidden}
+
+/* Exact copy of .view from original */
+.view{
+  position:fixed;inset:0;bottom:60px;overflow-y:auto;
+  display:none;
+  padding-bottom:1rem;
+}
+.view.active{display:block}
+
+/* tab-bar */
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  display:flex;background:#fff;border-top:1px solid #ddd;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.tab-btn{flex:1;padding:.5rem;border:none;background:none;font-size:.7rem;cursor:pointer}
+
+/* save bar */
+.save-bar{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  display:flex;align-items:center;gap:.5rem;padding:.4rem .8rem;
+  background:#fff;border-bottom:1px solid #ddd;
+  font-size:.62rem;
+}
+
+/* quiz choice buttons - exact copy */
+.qchoice{
+  background:#fff;border:1.5px solid #ddd;border-radius:.6rem;
+  padding:.7rem .6rem;font-size:.85rem;cursor:pointer;text-align:center;
+  transition:background .15s,border-color .15s;
+}
+.qchoice:active{transform:scale(.97);background:#eee}
+.qchoice.correct{background:rgba(46,107,71,.12);border-color:green;color:green}
+.qchoice.wrong{background:rgba(181,52,30,.08);border-color:red;color:red}
+
+/* word-card exact copy */
+.word-card{
+  background:#fff;border:1.5px solid #ddd;border-radius:8px;
+  min-height:220px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  padding:1.5rem 1.2rem;cursor:pointer;
+  position:relative;overflow:hidden;margin-bottom:.8rem;
+}
+
+#result{
+  position:fixed;bottom:70px;left:0;right:0;
+  background:green;color:white;padding:1rem;
+  text-align:center;font-size:1.2rem;
+  display:none;z-index:999;
+}
+</style>
+</head>
+<body>
+
+<div class="save-bar">Auto-saved</div>
+
+<!-- QUIZ VIEW (active) -->
+<div class="view active" id="quiz-view">
+  <div id="quiz-dash" style="padding:1.2rem;padding-top:48px">
+    <h2>Quiz Dash</h2>
+    <button onclick="startQuiz()" style="padding:1rem;width:100%;font-size:1rem">Start Quiz</button>
+  </div>
+</div>
+
+<!-- quiz-session OUTSIDE quiz-view, same as original -->
+<div id="quiz-session" style="display:none;padding:0;position:fixed;inset:0;bottom:60px;overflow-y:auto;z-index:60;background:#f5f0e8">
+  <div style="padding:1rem;padding-top:48px">
+    <div class="word-card" style="cursor:default">
+      <div style="font-size:3rem">W-</div>
+      <div style="font-size:.8rem;color:#888">Who is this character?</div>
+    </div>
+    <div id="qMcChoices" style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.4rem"></div>
+    <div id="result-banner" style="margin-top:.6rem;display:none;padding:.6rem;border-radius:.4rem;text-align:center"></div>
+  </div>
+</div>
+
+<div id="result">BUTTON WORKED! ✓</div>
+
+<div class="tab-bar">
+  <button class="tab-btn" onclick="switchToQuiz()">✍️ Quiz</button>
+</div>
+
+<script>
+function startQuiz() {
+  document.getElementById('quiz-view').style.display = 'none';
+  document.getElementById('quiz-session').style.display = 'block';
+  
+  var choices = ['Xena', 'Eeyore', 'Spongebob', 'Walter White'];
+  var grid = document.getElementById('qMcChoices');
+  grid.innerHTML = '';
+  choices.forEach(function(ch) {
+    var btn = document.createElement('button');
+    btn.className = 'qchoice';
+    btn.textContent = ch;
+    btn.addEventListener('click', function() {
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('result').textContent = 'TAPPED: ' + ch + ' ✓';
+    });
+    grid.appendChild(btn);
+  });
+}
+
+function switchToQuiz() {
+  document.getElementById('quiz-view').style.display = 'block';
+  document.getElementById('quiz-session').style.display = 'none';
+}
+</script>
+</body>
+</html>
